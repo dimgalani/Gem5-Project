@@ -321,3 +321,88 @@ As the simulated CPU frequency increases, the CPU can process more ticks per sec
 | TimingSimpleCPU       | 0.079 | 0.078 |
 
 Changing to a better memory technology we observe a slight improvement. Since the program has limited data and therefore the memory accesses are also limited the difference is not noticeable.
+
+# Part 2
+## 1 Execution of SPEC CPU2006 Benchmarks on gem5
+### 1 Cache Specifications
+After executing the benchmarks, the following specifications were found on the `config.ini` file.
+
+```ini
+[system]
+cache_line_size=64
+
+[system.cpu.dcache]
+assoc=2
+size=65536
+
+[system.cpu.icache]
+assoc=2
+size=32768
+
+[system.l2]
+assoc=8
+size=2097152
+```
+
+|        Cache Specifications        |     Value     |
+| :--------------------------------: | :-----------: |
+|         L1 Data cache size         | 65536 = 64kB  |
+|    L1 Data cache associativity     |       2       |
+|     L1 Instruction cache size      | 32768 = 32kB  |
+| L1 Instruction cache associativity |       2       |
+|           L2 cache size            | 2097152 = 2MB |
+|       L2 cache associativity       |       8       |
+|          cache_line_size           |      64       |
+
+### 2 Performance Metrics
+
+Based on the `stats.txt` file:
+
+|            Metric            |   bzip   |   mcf    |  hmmer   |   sjeng   | libm     |
+| :--------------------------: | :------: | :------: | :------: | :-------: | -------- |
+|     Simulation time(ms)      |  83.982  |  64.955  |  59.396  |  513.528  | 174.671  |
+| CPI (cycles per instruction) | 1.679650 | 1.299095 | 1.187917 | 10.270554 | 3.493415 |
+|    L1 icache missrate(%)     |  0.0077  |  2.3612  |  0.0221  |   0.002   | 0.0094   |
+|    L1 dcache missrate(%)     |  1.4798  |  0.2108  |  0.1637  |  12.1831  | 6.0972   |
+|     L2 cache missrate(%)     | 28.2163  |  5.5046  |  7.776   |  99.9972  | 99.9944  |
+|   system.clk_domain.clock    |   1000   |   1000   |   1000   |   1000    | 1000     |
+| cpu_cluster.clk_domain.clock |   500    |   500    |   500    |    500    | 500      |
+
+Based on these statistics the **sjeng** benchmarks had the highest execution time. Most likely this is caused due to the high percentages in L1 dcache misses and the L2 misses, indicating poor data locality and frequent accesses to main memory. The same applies also on libm banchmark. Also, the frequency of the CPU is 2GHz based on the ticks of cpu_cluster.clk_domain.clock. 
+
+### 3 Trying different cpu clock
+|                             | 1GHz | 2GHz | 3GHz |
+| :-------------------------: | :--: | :--: | :--: |
+|   system.clk_domain.clock   | 1000 | 1000 | 1000 |
+| system.cpu_clk_domain.clock | 1000 | 500  | 333  |
+
+We observe that only the system CPU clock changed when the frequency was altered. The **`system.clk_domain`** is used for slower, system-wide components like the memory bus `membus` and memory controllers `mem_ctrls`, as stated in the `config.json` file. They are responsible for the communication within the system and the synchronization of the components.
+
+On the other hand, the **`system.cpu_clk_domain`** is used for high-performance components directly involved in the CPU's operation, including:
+- CPU (`cpu`)
+- Instruction and Data Caches (`icache` and `dcache`)
+- Translation Lookaside Buffers: Instruction TLB (`itb`) and Data TLB (`dtb`)
+- L2 Cache (`l2`)
+- CPU-to-L2 Bus (`tol2bus`)
+
+If another processor is added, it is expected to work using the same `system.clk_domain.clock` clock but with a separate CPU clock that may differ from the current processor's.
+
+
+
+|                            |  bzip   |   mcf   |  hmmer  |  sjeng  | libm    |
+| :------------------------: | :-----: | :-----: | :-----: | :-----: | ------- |
+| Execution time in 1GHz(ms) | 161.025 | 127.942 | 118.530 | 704.056 | 262.327 |
+| Execution time in 2GHz(ms) | 83.982  | 64.955  | 59.396  | 513.528 | 174.671 |
+| Execution time in 3GHz(ms) | 58.385  | 43.867  | 39.646  | 449.821 | 146.433 |
+
+
+Higher frequency leads to reduced execution times across all benchmarks. However, the scaling is not perfectly linear, because the execution time is influenced by several factors. The benchmarks with efficient cache utilization and lower CPI, like **bzip** and **hmmer**, scale better with frequency. Also, the speedup from 2GHz to 3GHz is smaller, possibly due to the workload that is inherently serial or the existence of dependencies.
+
+### 4 Changing memory configuration
+
+Executing the specbzip benchmark with memory type DDR3_2133_8x8 instead of DDR3_1600_x64 there is a slight improvement in the execution time and the CPI. This result was expected because the new memory type has a quicker clock.
+
+|                              | DDR3_1600_x64 | DDR3_2133_8x8 |
+| ---------------------------- | ------------- | ------------- |
+| Execution time(ms)           | 83.982        | 83.609        |
+| CPI (cycles per instruction) | 1.679650      | 1.672175      |
