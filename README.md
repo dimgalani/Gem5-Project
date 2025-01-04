@@ -277,7 +277,7 @@ system.cpu_cluster.cpus.dcache.overall_mshr_hits::total           30            
 
  However, according to the statistics, 327+177 equals 504 accesses. Since this number does not align with the L2 overall accesses, it was assumed that these requests were resolved elsewhere, e.g. on the shared files, without accessing the L2 cache. On the dcache shared files there are 30 hits. So the correct equation is:
 
-$$L2_{accesses} =  L1I_{misses} + L1D_{misses} - L1_{shared\_hits} = 327 + 177 - 30 = 474$$
+$$L2_{accesses} =  L1I_{misses} + L1D_{misses} - L1_{shared\textunderscore hits} = 327 + 177 - 30 = 474$$
 ### 3 Models of in-order CPUs
 ##### SimpleCPU
 The **SimpleCPU** is a functional, in-order model suitable for cases where detailed models are not needed. It is divided in three classes: **BaseSimpleCPU**, **AtomicSimpleCPU** and **TimingSimpleCPU**.
@@ -406,3 +406,104 @@ Executing the specbzip benchmark with memory type DDR3_2133_8x8 instead of DDR3_
 | ---------------------------- | ------------- | ------------- |
 | Execution time(ms)           | 83.982        | 83.609        |
 | CPI (cycles per instruction) | 1.679650      | 1.672175      |
+
+## 2 Design Exploration
+The goal of this step is to optimize the CPI by modifying the following parameters:
+- L1 instruction cache size 
+- L1 instruction cache associativity 
+- L1 data cache size 
+- L1 data cache associativity 
+- L2 cache size 
+- L2 cache associativity 
+- size cache line
+
+But there are some limitations we must consider:
+- $L1_{icache} + L1_{dcache} < 256KB$
+- $L2_{cache} <4MB$
+
+
+Several specification adjustments were made based on the initial simulation statistics and the following principles, in order to achieve a lower CPI.
+- Increasing the cache size could lead to reduced miss rates, since more data or instructions can be stored locally.
+- Generally, higher associativity reduces cache conflicts, especially in workloads that reuse a lot of data. However, it can also cause an increase in CPI due to complexity in accessing and managing the cache.
+- A larger cache line size improves performance for workloads with good spatial locality by minimizing cache misses during sequential data access.
+
+The following table shows the parameters of each execution, the CPI, and the cost for each change, which is used at the next step.
+
+|                   | L1D size | L1D assoc | L1i size | L1i assoc | L2 size | L2 assoc | cache_line_size | CPI          | Cost        |
+| ----------------- | -------- | --------- | -------- | --------- | ------- | -------- | --------------- | ------------ | ----------- |
+| specbzip_default  | 64       | 2         | 32       | 2         | 2       | 8        | 64              | 1.610247     | 10.1048     |
+| specbzip_0        | 128      | 4         | 32       | 2         | 4       | 8        | 128             | 1.556298     | 14.5899     |
+| specbzip_1        | 128      | 4         | 32       | 2         | 4       | 16       | 128             | 1.555648     | 17.9914     |
+| specbzip_2        | 64       | 4         | 64       | 4         | 4       | 16       | 128             | 1.555529     | 17.3765     |
+| specbzip_3        | 64       | 4         | 64       | 4         | 4       | 8        | 64              | 1.580758     | 13.8750     |
+| specbzip_4        | 128      | 4         | 64       | 4         | 4       | 16       | 64              | 1.580604     | 19.2765     |
+| specbzip_5    | 128  | 4     | 64   | 4     | 4   | 8    | 128         | 1.556297 | 15.9750 |
+| specbzip_6        | 128      | 4         | 64       | 4         | 4       | 16       | 128             | 1.555529     | 19.3765     |
+| specbzip_7        | 128      | 8         | 64       | 4         | 4       | 16       | 128             | 1.547384     | 20.5237     |
+| specbzip_8        | 128      | 8         | 64       | 8         | 4       | 16       | 128             | 1.547359 | 21.6709     |
+| specbzip_9        | 64       | 4         | 32       | 2         | 2       | 8        | 64              | 1.594676     | 10.4899     |
+| specmcf_default   | 64       | 2         | 32       | 2         | 2       | 8        | 64              | 1.279422     | 10.1048     |
+| specmcf_0         | 128      | 4         | 32       | 2         | 2       | 8        | 64              | 1.278152     | 12.4899     |
+| specmcf_1         | 64       | 4         | 64       | 4         | 2       | 8        | 64              | 1.138580     | 11.8750     |
+| specmcf_2         | 128      | 4         | 128      | 4         | 2       | 8        | 64              | 1.137877     | 15.8750     |
+| specmcf_3         | 128      | 4         | 128      | 4         | 4       | 8        | 64              | 1.137721     | 17.8750     |
+| specmcf_4         | 128      | 4         | 128      | 4         | 4       | 16       | 64              | 1.137721     | 21.2765     |
+| specmcf_5         | 128      | 4         | 128      | 4         | 4       | 8        | 128             | 1.111239     | 17.9750     |
+| specmcf_6     | 64   | 4     | 128  | 4     | 4   | 8    | 128         | 1.111918 | 15.9750 |
+| specmcf_7         | 64       | 4         | 128      | 4         | 4       | 16       | 128             | 1.111918     | 19.3765     |
+| spechmmer_default | 64       | 2         | 32       | 2         | 2       | 8        | 64              | 1.185304     | 10.1048     |
+| spechmmer_0       | 64       | 4         | 32       | 2         | 2       | 8        | 64              | 1.185128     | 10.4899     |
+| spechmmer_1       | 64       | 8         | 32       | 2         | 2       | 8        | 64              | 1.185082     | 11.6370     |
+| spechmmer_2       | 128      | 8         | 32       | 2         | 2       | 8        | 64              | 1.182809     | 13.6370     |
+| spechmmer_3   | 128  | 4     | 32   | 2     | 2   | 8    | 128         | 1.178793 | 12.5899 |
+| spechmmer_4       | 128      | 4         | 32       | 2         | 4       | 8        | 128             | 1.178793     | 14.5899     |
+| spechmmer_5       | 128      | 4         | 64       | 4         | 4       | 8        | 128             | 1.178125     | 15.9750     |
+| spechmmer_6       | 128      | 4         | 128      | 4         | 4       | 8        | 128             | 1.178110 | 17.9750     |
+| spechmmer_7       | 128      | 4         | 128      | 4         | 4       | 16       | 128             | 1.178110     | 21.3765     |
+| spechmmer_8       | 64       | 4         | 64       | 4         | 4       | 16       | 128             | 1.179548     | 17.3765     |
+| specsjeng_default | 64       | 2         | 32       | 2         | 2       | 8        | 64              | 7.040561     | 10.1048     |
+| specsjeng_0       | 64       | 4         | 32       | 2         | 2       | 8        | 64              | 7.040561     | 10.4899     |
+| specsjeng_1       | 128      | 4         | 32       | 2         | 2       | 8        | 64              | 7.040599     | 12.4899     |
+| specsjeng_2       | 128      | 8         | 32       | 2         | 2       | 8        | 64              | 7.040561     | 13.6370     |
+| specsjeng_3       | 64       | 4         | 64       | 4         | 2       | 8        | 64              | 7.039166     | 11.8750     |
+| specsjeng_4   | 64   | 4     | 32   | 2     | 2   | 8    | 128         | 4.974696 | 10.5899 |
+| specsjeng_5       | 64       | 4         | 32       | 2         | 4       | 8        | 128             | 4.974696     | 12.5899     |
+| specsjeng_6       | 64       | 4         | 32       | 2         | 4       | 16       | 128             | 4.974347     | 15.9914     |
+| specsjeng_7       | 64       | 8         | 32       | 2         | 4       | 16       | 128             | 4.974354     | 17.1386     |
+| specsjeng_8       | 64       | 4         | 128      | 4         | 4       | 16       | 128             | 4.972141 | 19.3765     |
+| speclibm_default  | 64       | 2         | 32       | 2         | 2       | 8        | 64              | 2.623265     | 10.1048     |
+| speclibm_0        | 64       | 4         | 32       | 2         | 2       | 8        | 64              | 2.623265     | 10.4899     |
+| speclibm_1        | 128      | 8         | 32       | 2         | 2       | 8        | 64              | 2.623265     | 13.6370     |
+| speclibm_2        | 64       | 4         | 64       | 4         | 2       | 8        | 64              | 2.623265     | 11.8750     |
+| speclibm_3        | 64       | 4         | 32       | 2         | 4       | 8        | 64              | 2.620756     | 12.4899     |
+| speclibm_4        | 64       | 4         | 32       | 2         | 4       | 8        | 128             | 1.989132     | 12.5899     |
+| speclibm_5        | 64       | 4         | 32       | 2         | 4       | 16       | 128             | 1.989132     | 15.9914     |
+| speclibm_6        | 64       | 4         | 32       | 2         | 2       | 8        | 128             | 1.990458     | 10.5899     |
+| speclibm_7        | 64       | 2         | 32       | 2         | 2       | 8        | 128             | 1.990458     | 10.2048     |
+| speclibm_8    | 64   | 2     | 32   | 2     | 4   | 8    | 128         | 1.989132 | 12.2048 |
+
+### 3 Cost of performance optimization
+The specification change introduces some tradeoffs even though it improves certain performance metrics. Therefore, it is useful to create a cost function to evaluate the impact of these changes.
+Since latency and throughput are both critical for L1 cache performance, L1icache and L1dcache are typically selected to have sizes ranging from a few decades of KB to a hundreds of KB. For this reason, the L1 cache technology is more expensive **per byte**, while the L2 cache is much larger and contributes significantly to chip space. In this way, we can state that an L1 32kB cache (either icache or dcache) contributes one unit to the cost function, which is equivalent to 1MB of L2 cache.
+
+$$cost_{L1\textunderscore size} = \dfrac{size}{32kB},\hspace{0.75em} cost_{L2\textunderscore size} = \dfrac{size}{1MB}$$
+
+The increase of the associativity has a smaller effect on cost than the cache size. Similar due to the strict speed and power requirements of the L1, the increase of the associativity of the L1 has a greater impact in contrast with the L2. Additionally, there is a non-linear dependence between the cost and the associativity. Doubling from 4-way to 8-way is more expensive than going from 2-way to 4-way, and beyond 8-way or 16-way, the added cost often outweighs the benefits. This behavior is being portrayed by the following terms
+
+$$cost_{L1\textunderscore  assoc} = e^{0.13 \cdot assoc},\hspace{0.75em}cost_{L2\textunderscore assoc} = e^{0.11 \cdot assoc}$$
+
+The cache line size has a minor impact on the cost, because it just changes the arrangement of the blocks. The effect that has on the performance depends on the data of the benchmark. When a cache miss occurs on a smaller cache line, less data is sent to the block. However, when the cache line size is larger, there are fewer blocks, so there is less complexity.
+
+$$cost_{cache\textunderscore line\textunderscore size} = 0.1\cdot\dfrac{line\textunderscore size}{64}$$
+Altogether, the cost function is defined as:
+$$cost = \dfrac{L1\textunderscore icachesize}{32kB} +\dfrac{L1\textunderscore dcachesize}{32kB}+ \dfrac{L2\textunderscore size}{1MB} + e^{0.13 \cdot L1\textunderscore dcache\textunderscore assoc} + e^{0.13 \cdot L1\textunderscore icache\textunderscore assoc} + e^{0.11 \cdot L2\textunderscore assoc} + 0.1\cdot\dfrac{line\textunderscore size}{64}$$
+
+The costs on the table above are calculated based on this cost function. We observe that in many cases achieving the best CPI comes with a significantly higher cost. Therefore, it is often preferrable to compromise on the performance to keep the cost affordable. Finally, by balancing cost and CPI, the optimal parameters for each specification are:
+
+|                 | L1D size | L1D assoc | L1i size | L1i assoc | L2 size | L2 assoc | cache_line_size | CPI          | Cost        |
+| --------------- | -------- | --------- | -------- | --------- | ------- | -------- | --------------- | ------------ | ----------- |
+| specbzip_5  | 128  | 4     | 64   | 4     | 4   | 8    | 128         | 1.556297 | 15.9750 |
+| specmcf_6   | 64   | 4     | 128  | 4     | 4   | 8    | 128         | 1.111918 | 15.9750 |
+| spechmmer_3 | 128  | 4     | 32   | 2     | 2   | 8    | 128         | 1.178793 | 12.5899 |
+| specsjeng_4 | 64   | 4     | 32   | 2     | 2   | 8    | 128         | 4.974696 | 10.5899 |
+| speclibm_8  | 64   | 2     | 32   | 2     | 4   | 8    | 128         | 1.989132 | 12.2048 |
