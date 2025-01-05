@@ -247,7 +247,7 @@ Although on the starter_se.py the ranks per channel were initialized as none, on
 ```
 
 #### b) Simulation Statistics (sim_seconds, sim_insts and host_inst_rate)
-The stats.txt file contains the following values:
+The `stats.txt` file [^1] contains the following values:
 - sim_seconds = 0.000035 = 35 μs, total simulated time for the simulation.
 - sim_insts = 5027, total number of instructions committed by the CPU.
 - host_inst_rate = 76338 instructions/sec, rate that the simulator executes the instructions.
@@ -280,16 +280,16 @@ system.cpu_cluster.cpus.dcache.overall_mshr_hits::total           30            
 $$L2_{accesses} =  L1I_{misses} + L1D_{misses} - L1_{shared\textunderscore hits} = 327 + 177 - 30 = 474$$
 ### 3 Models of in-order CPUs
 ##### SimpleCPU
-The **SimpleCPU** is a functional, in-order model suitable for cases where detailed models are not needed. It is divided in three classes: **BaseSimpleCPU**, **AtomicSimpleCPU** and **TimingSimpleCPU**.
+The **SimpleCPU** is a functional, in-order model suitable for cases where detailed models are not needed. It is divided in three classes: **BaseSimpleCPU**, **AtomicSimpleCPU** and **TimingSimpleCPU**. [^2]
 - **BaseSimpleCPU** manages architected state, shared stats, common functions (e.g., interrupt checks, fetch requests, execution setup/actions, PC advancement), and implements the ExecContext interface. The **BaseSimpleCPU** provides a shared foundation for the **AtomicSimpleCPU** and **TimingSimpleCPU** by encapsulating the common functionality and state they both require.
 - **AtomicSimpleCPU** uses atomic memory accesses which are faster than detailed access. It estimates the total cache access time using the latency estimates from the atomic accesses.
-- **TimingSimpleCPU** uses timing memory accesses, emphasizing accurate memory timing interactions. It waits for the memory system to respond (success or nack) before continuing, stalling on cache accesses.
+- **TimingSimpleCPU** uses timing memory accesses, emphasizing accurate memory timing interactions. It waits for the memory system to respond (success or nack) before continuing, stalling on cache accesses. [^5]
 ##### Trace CPU
-The **Trace CPU** does not belong either in in-order or out-of-order models, because it plays back recorded traces without carrying out commands dynamically. The trace data determines its behavior which is created based on the dependencies between loads and stores.
+The **Trace CPU** does not belong either in in-order or out-of-order models, because it plays back recorded traces without carrying out commands dynamically. The trace data determines its behavior which is created based on the dependencies between loads and stores. [^3]
 ##### Minor CPU Model
-The **MinorCPU** is an in-order processor model with a fixed, configurable pipeline designed for in-order execution. It has four pipeline stages (Fetch1, Fetch2, Decode, Execute). These stages are connected through buffers to handle inter-stage delays and branch predictions. It provides effective management of memory access, branch prediction, and pipeline activity while avoiding complicated data structures and concentrating on dynamic instruction data. **MinorCPU** allows detailed customization of parameters while optimizing performance by skipping idle cycles. Although this model does not support multithreading, the model is ideal for microarchitectural studies of simple in-order processors. 
+The **MinorCPU** is an in-order processor model with a fixed, configurable pipeline designed for in-order execution. It has four pipeline stages (Fetch1, Fetch2, Decode, Execute). These stages are connected through buffers to handle inter-stage delays and branch predictions. It provides effective management of memory access, branch prediction, and pipeline activity while avoiding complicated data structures and concentrating on dynamic instruction data. **MinorCPU** allows detailed customization of parameters while optimizing performance by skipping idle cycles. Although this model does not support multithreading, the model is ideal for microarchitectural studies of simple in-order processors. [^4]
 ##### HPI
-The **HPI (High-Performance In-order)** is a modern in-order Armv8-A implementation.
+The **HPI (High-Performance In-order)** is a modern in-order Armv8-A implementation. [^5]
 #### a) Fibonacci sequence program
 A simple program was implemented which calculates the first 40 terms of the Fibonacci sequence, without recursion, in order to be light-weighted. This program was executed twice on the gem5 using the **TimingSimpleCPU** and **MinorCPU** models.
 #### b) Results
@@ -376,9 +376,9 @@ Based on these statistics the **sjeng** benchmarks had the highest execution tim
 |   system.clk_domain.clock   | 1000 | 1000 | 1000 |
 | system.cpu_clk_domain.clock | 1000 | 500  | 333  |
 
-We observe that only the system CPU clock changed when the frequency was altered. The **`system.clk_domain`** is used for slower, system-wide components like the memory bus `membus` and memory controllers `mem_ctrls`, as stated in the `config.json` file. They are responsible for the communication within the system and the synchronization of the components.
+We observe that only the system CPU clock changed when the frequency was altered. The `system.clk_domain` is used for slower, system-wide components like the memory bus `membus` and memory controllers `mem_ctrls`, as stated in the `config.json` file. They are responsible for the communication within the system and the synchronization of the components.
 
-On the other hand, the **`system.cpu_clk_domain`** is used for high-performance components directly involved in the CPU's operation, including:
+On the other hand, the `system.cpu_clk_domain` is used for high-performance components directly involved in the CPU's operation, including:
 - CPU (`cpu`)
 - Instruction and Data Caches (`icache` and `dcache`)
 - Translation Lookaside Buffers: Instruction TLB (`itb`) and Data TLB (`dtb`)
@@ -484,15 +484,15 @@ The following table shows the parameters of each execution, the CPI, and the cos
 
 ### 3 Cost of performance optimization
 The specification change introduces some tradeoffs even though it improves certain performance metrics. Therefore, it is useful to create a cost function to evaluate the impact of these changes.
-Since latency and throughput are both critical for L1 cache performance, L1icache and L1dcache are typically selected to have sizes ranging from a few decades of KB to a hundreds of KB. For this reason, the L1 cache technology is more expensive **per byte**, while the L2 cache is much larger and contributes significantly to chip space. In this way, we can state that an L1 32kB cache (either icache or dcache) contributes one unit to the cost function, which is equivalent to 1MB of L2 cache.
+Since latency and throughput are both critical for L1 cache performance, L1icache and L1dcache are typically selected to have sizes ranging from a few decades of KB to a hundreds of KB. For this reason, the L1 cache technology is more expensive **per byte**, while the L2 cache is much larger and contributes significantly to chip space. In this way, we can state that an L1 32kB cache (either icache or dcache) contributes one unit to the cost function, which is equivalent to 1MB of L2 cache. [^6] [^8]
 
 $$cost_{L1\textunderscore size} = \dfrac{size}{32kB},\hspace{0.75em} cost_{L2\textunderscore size} = \dfrac{size}{1MB}$$
 
-The increase of the associativity has a smaller effect on cost than the cache size. Similar due to the strict speed and power requirements of the L1, the increase of the associativity of the L1 has a greater impact in contrast with the L2. Additionally, there is a non-linear dependence between the cost and the associativity. Doubling from 4-way to 8-way is more expensive than going from 2-way to 4-way, and beyond 8-way or 16-way, the added cost often outweighs the benefits. This behavior is being portrayed by the following terms
+The increase of the associativity has a smaller effect on cost than the cache size. Similar due to the strict speed and power requirements of the L1, the increase of the associativity of the L1 has a greater impact in contrast with the L2. Additionally, there is a non-linear dependence between the cost and the associativity. Doubling from 4-way to 8-way is more expensive than going from 2-way to 4-way, and beyond 8-way or 16-way, the added cost often outweighs the benefits.[^8] This behavior is being portrayed by the following terms
 
 $$cost_{L1\textunderscore  assoc} = e^{0.13 \cdot assoc},\hspace{0.75em}cost_{L2\textunderscore assoc} = e^{0.11 \cdot assoc}$$
 
-The cache line size has a minor impact on the cost, because it just changes the arrangement of the blocks. The effect that has on the performance depends on the data of the benchmark. When a cache miss occurs on a smaller cache line, less data is sent to the block. However, when the cache line size is larger, there are fewer blocks, so there is less complexity.
+The cache line size has a minor impact on the cost, because it just changes the arrangement of the blocks. The effect that has on the performance depends on the data of the benchmark. When a cache miss occurs on a smaller cache line, less data is sent to the block. However, when the cache line size is larger, there are fewer blocks, so there is less complexity. [^8] [^7] 
 
 $$cost_{cache\textunderscore line\textunderscore size} = 0.1\cdot\dfrac{line\textunderscore size}{64}$$
 Altogether, the cost function is defined as:
@@ -507,3 +507,12 @@ The costs on the table above are calculated based on this cost function. We obse
 | spechmmer_3 | 128  | 4     | 32   | 2     | 2   | 8    | 128         | 1.178793 | 12.5899 |
 | specsjeng_4 | 64   | 4     | 32   | 2     | 2   | 8    | 128         | 4.974696 | 10.5899 |
 | speclibm_8  | 64   | 2     | 32   | 2     | 4   | 8    | 128         | 1.989132 | 12.2048 |
+
+[^1]: https://www.gem5.org/documentation/learning_gem5/part1/gem5_stats/
+[^2]: https://www.gem5.org/documentation/general_docs/cpu_models/SimpleCPU
+[^3]: https://www.gem5.org/documentation/general_docs/cpu_models/TraceCPU
+[^4]: https://www.gem5.org/documentation/general_docs/cpu_models/minor_cpu
+[^5]: https://stackoverflow.com/questions/58554232/what-is-the-difference-between-the-gem5-cpu-models-and-which-one-is-more-accurat
+[^6]: https://stackoverflow.com/questions/4666728/why-is-the-size-of-l1-cache-smaller-than-that-of-the-l2-cache-in-most-of-the-pro
+[^7]: Przybylski, Steven A.. Cache and Memory Hierarchy Design: A Performance Directed Approach. USA, Elsevier Science, 2014.
+[^8]: Hennessy, John L., et al. Computer Architecture: A Quantitative Approach. India, Elsevier Science, 2006.
