@@ -368,6 +368,8 @@ Based on the `stats.txt` file:
 |   system.clk_domain.clock    |   1000   |   1000   |   1000   |   1000    | 1000     |
 | cpu_cluster.clk_domain.clock |   500    |   500    |   500    |    500    | 500      |
 
+![Figure_2](https://github.com/user-attachments/assets/aabf3fa8-1420-4179-af27-54dcbbabafea)
+
 Based on these statistics the **sjeng** benchmarks had the highest execution time. Most likely this is caused due to the high percentages in L1 dcache misses and the L2 misses, indicating poor data locality and frequent accesses to main memory. The same applies also on libm banchmark. Also, the frequency of the CPU is 2GHz based on the ticks of cpu_cluster.clk_domain.clock. 
 
 ### 3 Trying different cpu clock
@@ -420,6 +422,13 @@ The goal of this step is to optimize the CPI by modifying the following paramete
 But there are some limitations we must consider:
 - $L1_{icache} + L1_{dcache} < 256KB$
 - $L2_{cache} <4MB$
+
+
+![cpi_bzip](https://github.com/user-attachments/assets/4c3737cd-0d8f-4eb2-92c2-5c779c220215)
+![cpi_hmmer](https://github.com/user-attachments/assets/162744ea-09d9-4aff-814f-b325bc5aef7d)
+![cpi_libm](https://github.com/user-attachments/assets/e35b4a61-4364-453a-bef5-cffa3f2e2fc2)
+![cpi_mcf](https://github.com/user-attachments/assets/88443b9f-29b8-42a1-83c2-77ae5d6bfc97)
+![cpi_sjeng](https://github.com/user-attachments/assets/7f54c40a-1b4a-4d6f-a010-8bb422c95902)
 
 
 Several specification adjustments were made based on the initial simulation statistics and the following principles, in order to achieve a lower CPI.
