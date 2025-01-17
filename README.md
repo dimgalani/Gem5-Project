@@ -2,7 +2,7 @@
 # Part 1
 ### 1 Specifications based on the file starter_se.py
 
-With the execution of the following command, the type of the CPU is defined through the `--cpu` flag. So the minorCPU model is used in this simulation. 
+With the execution of the following command, the type of the CPU is defined through the `--cpu` flag. So, the minorCPU model is used in this simulation. 
 ```bash
 ./build/ARM/gem5.opt -d hello_result configs/example/arm/starter_se.py --cpu="minor" "tests/test-progs/hello/bin/arm/linux/hello"
 ```
@@ -76,13 +76,15 @@ self.voltage_domain = VoltageDomain(voltage="3.3V")
 
 ### 2 Understanding the config.ini and config.json files
 #### a) Verification of the 1st question's assumptions
-The `config.ini` file contains configuration settings for the system, which are divided into sections. The primary difference with the `config.json` lies in format and usage. A `.json` file provides a hierarchical structure.
+The `config.ini` file contains configuration settings for the system, which are divided into sections. The primary difference with the `config.json` lies in format and usage. A `.json` file provides a hierarchical structure. Bellow there are the lines with the specifications that were found on the `ini` file first, followed by the ones at the `json` file.
 
 - **CPU Type: MinorCPU**
+
 ```ini
 66    [system.cpu_cluster.cpus]
 67    type=MinorCPU
 ```
+
 
 ```
 153	 "cpus": [
@@ -315,7 +317,7 @@ On the other hand, the time that the program elapsed on the host is greater in t
 
 As the simulated CPU frequency increases, the CPU can process more ticks per second, reducing the overall simulation time.  The **MinorCPU** benefits more from this increase compared to the simpler **TimingSimpleCPU**.
 
-| Simulation time in ms | DDR3  | DDR4  |
+| Simulation time in ms | DDR3_1600_8x8  | DDR4_2400_8x8  |
 | --------------------- | ----- | ----- |
 | MinorCPU              | 0.054 | 0.053 |
 | TimingSimpleCPU       | 0.079 | 0.078 |
@@ -503,9 +505,9 @@ $$cost_{L1\textunderscore  assoc} = e^{0.13 \cdot assoc},\hspace{0.75em}cost_{L2
 
 The cache line size has a minor impact on the cost, because it just changes the arrangement of the blocks. The effect that has on the performance depends on the data of the benchmark. When a cache miss occurs on a smaller cache line, less data is sent to the block. However, when the cache line size is larger, there are fewer blocks, so there is less complexity. [^8] [^7] 
 
-$$cost_{cache\textunderscore line\textunderscore size} = 0.1\cdot\dfrac{line\textunderscore size}{64}$$
+$$cost_{cache\textunderscore line\textunderscore size} = 0.1\cdot\dfrac{line\textunderscore size}{64bytes}$$
 Altogether, the cost function is defined as:
-$$cost = \dfrac{L1\textunderscore icachesize}{32kB} +\dfrac{L1\textunderscore dcachesize}{32kB}+ \dfrac{L2\textunderscore size}{1MB} + e^{0.13 \cdot L1\textunderscore dcache\textunderscore assoc} + e^{0.13 \cdot L1\textunderscore icache\textunderscore assoc} + e^{0.11 \cdot L2\textunderscore assoc} + 0.1\cdot\dfrac{line\textunderscore size}{64}$$
+$$cost = \dfrac{L1\textunderscore icachesize}{32kB} +\dfrac{L1\textunderscore dcachesize}{32kB}+ \dfrac{L2\textunderscore size}{1MB} + e^{0.13 \cdot L1\textunderscore dcache\textunderscore assoc} + e^{0.13 \cdot L1\textunderscore icache\textunderscore assoc} + e^{0.11 \cdot L2\textunderscore assoc} + 0.1\cdot\dfrac{line\textunderscore size}{64bytes}$$
 
 The costs on the table above are calculated based on this cost function. We observe that in many cases achieving the best CPI comes with a significantly higher cost. Therefore, it is often preferrable to compromise on the performance to keep the cost affordable. Finally, by balancing cost and CPI, the optimal parameters for each specification are:
 
